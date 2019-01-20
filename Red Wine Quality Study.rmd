@@ -1,0 +1,1295 @@
+Red Wine Quality Analysis by Aaron Wilson
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using in your analysis in this code
+# chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk. This
+# prevents the code from displaying in the knitted HTML output. You should set
+# echo=FALSE for all code chunks in your file, unless it makes sense for your
+# report to show the code that generated a particular plot.
+
+# The other parameters for "message" and "warning" should also be set to FALSE
+# for other code chunks once you have verified that each plot comes out as you
+# want it to. This will clean up the flow of your report.
+#install.packages("ggplot2", dependencies = T) 
+#install.packages("knitr", dependencies = T)
+#install.packages("dplyr", dependencies = T)
+#install.packages("ggrepel", dependencies = T)
+#install.packages("forcats", dependencies = T)
+#install.packages('memisc')
+library(ggplot2)
+library(knitr)
+library(dplyr)
+library(gridExtra)
+library(ggrepel)
+library(scales)
+library(GGally)
+library(memisc)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Load_the_Data}
+# Load the Data
+getwd()
+'C:/Users/User/Desktop/Data_Analysis/R/Project/'
+df <- read.csv('C:/Users/User/Desktop/Data_Analysis/Udacity/R/Project/wineQualityReds.csv')
+```
+
+> The data set used in this exploration uses:
+> P. Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis. 
+  Modeling wine preferences by data mining from physicochemical properties.
+  In Decision Support Systems, Elsevier, 47(4):547-553. ISSN: 0167-9236.
+
+> Available at: 
+    [@Elsevier] http://dx.doi.org/10.1016/j.dss.2009.05.016
+    [Pre-press (pdf)] http://www3.dsi.uminho.pt/pcortez/winequality09.pdf
+    [bib] http://www3.dsi.uminho.pt/pcortez/dss09.bib
+> The data set includes objective tests and sensory data provided by experts. 
+The wines used are Portuguese "Vinho Verde" red wines. Input variables 
+in the dataset are:
+  - fixed acidity (tartaric acid - g / dm^3)
+  - volatile acidity (acetic acid - g / dm^3)
+  - citric acid (g / dm^3)
+  - residual sugar (g / dm^3)
+  - chlorides (sodium chloride - g / dm^3
+  - free sulfur dioxide (mg / dm^3)
+  - total sulfur dioxide (mg / dm^3)
+  - density (g / cm^3)
+  - pH
+  - sulphates (potassium sulphate - g / dm3)
+  - alcohol (% by volume)
+> The output variable is quality (score between 0 and 10)
+
+# Univariate Plots Section
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, variables}
+# Checking variables and datatypes in the dataset
+str(df)
+```
+> The X column is just a counter and will not be needed in the analysis.  
+Starting by subsetting that column out and then will run a summary of all the 
+other categries.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, summaries}
+# Removing the X Column
+df = subset(df, select = -c(X))
+# Printing a summary of each variable
+summary(df)
+```
+
+> Residual sugar, chlorides, free sulfur dioxide, and total sulfur dioxide have 
+very large ranges for min to max.  The interquartile range however is not
+super large for any singular variable.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, count_quality}
+# Plotting quality breakdown
+ggplot(aes(x=quality), data = df)+
+  geom_histogram()
+```
+
+> Running a histogram of the quality scores shows normal distribution with the
+vast majority of samples rated 5-6.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, quality_pie}
+# Creating a pie chart of Quality Ratings
+# Code sample from: 
+# https://stackoverflow.com/questions/41338757/adding-percentage-labels-on-pie-chart-in-r
+
+pie_table <- count(df, quality)
+
+pie_table <- pie_table%>%
+mutate(quality = factor(quality, levels = sort(unique(quality),decreasing = T)),
+          cumulative = cumsum(n),
+          midpoint = cumulative - n / 2,
+          label = paste0(quality, "-", round(n / sum(n) * 100, 1), "%"))
+
+ggplot(pie_table, aes(x = 1, weight = n, fill = quality)) +
+   geom_bar(width = 1, position = "stack") +
+   coord_polar(theta = "y")+
+   geom_text_repel(aes(x = 1.2, y = midpoint, label = label))+
+  guides(fill = guide_legend(title = "Quality Rating"))
+```
+
+> Over 82% of the red wines get a quality score of 5-6.  What makes a red wine 
+score outside this quality range (lower or higher)?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fixed_acidity_count}
+# Plotting counts of the fixed acidity
+ggplot(df, aes(x=fixed.acidity))+
+  geom_histogram(binwidth = .25)
+```
+
+>Plotting fixed acidity has a bell distribution with a right tail. Most wines 
+have a fixed acidity between 6 and 10.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fixed_acidity_grid}
+# Grid of plots for fixed acidity distribution breaking by quality ratings
+p1 <- ggplot(subset(df, quality<6), aes(x=fixed.acidity))+
+  geom_histogram(binwidth = .25)+
+  scale_x_continuous(limits = c(0,16))+
+  ggtitle("Fixed Acidity for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=fixed.acidity))+
+  geom_histogram(binwidth = .25)+
+  scale_x_continuous(limits = c(0,16))+
+  ggtitle("Fixed Acidity for Quality 6-8")
+
+p3 <- ggplot(subset(df, quality<6), aes(x=fixed.acidity))+
+  geom_histogram(binwidth = 1)+
+  scale_x_continuous(limits = c(0,16))+
+  ggtitle("Fixed Acidity for Quality 3-5")
+
+p4 <- ggplot(subset(df, quality>=6), aes(x=fixed.acidity))+
+  geom_histogram(binwidth = 1)+
+  scale_x_continuous(limits = c(0,16))+
+  ggtitle("Fixed Acidity for Quality 6-8")
+
+grid.arrange(p1,p2,p3,p4,ncol = 2)
+```
+
+> Subsetting for the quality the peak of the distribution falls generally 
+in the same range for 3-5 quality as 6-8, however the tail is taller and 
+continuously longer in the 6-8 range.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, volatile_acidity_count}
+# Plotting volatile acidity counts
+ggplot(df, aes(x=volatile.acidity))+
+  geom_histogram(binwidth = .01)
+```
+
+>Plotting volatile acidity has a normal distribution with a right tail. Most 
+red wines have a volatile acidity between 0.2 and 0.8.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, volatile_acidity_grid}
+# Grid of plots breaking down fixed acidity by high/low quality ratings
+p1 <- ggplot(subset(df, quality<6), aes(x=volatile.acidity))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits = c(0,1.6))+
+  ggtitle("Volatile Acidity for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=volatile.acidity))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits = c(0,1.6))+
+  ggtitle("Volatile Acidity for Quality 6-8")
+
+p3 <- ggplot(subset(df, quality<6), aes(x=volatile.acidity))+
+  geom_histogram(binwidth = .25)+
+  scale_x_continuous(limits = c(0,1.6))+
+  ggtitle("Volatile Acidity for Quality 3-5")
+
+p4 <- ggplot(subset(df, quality>=6), aes(x=volatile.acidity))+
+  geom_histogram(binwidth = .25)+
+  scale_x_continuous(limits = c(0,1.6))+
+  ggtitle("Volatile Acidity for Quality 6-8")
+
+grid.arrange(p1,p2,p3,p4,ncol = 2)
+```
+
+> Subsetting quality the higher volatile acity scores apears more prevelent with
+lower quality red wines.  Nothing rated 6 and above has a volatile acidity over 
+1.1.  There are roughly 200 more wines below .5 in the 6-8 quality rating 
+compared to the lower quality scores.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, citric_acid_count}
+# Plot of citric acid counts
+ggplot(df, aes(x=citric.acid))+
+  geom_histogram(binwidth = .01)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, counter}
+# Counting the number of wines with 0 Citric Acid
+count(df, citric.acid == 0)
+```
+
+> Plotting citric acid has generally a right skew, starting at zero where 
+roughly 1/10 of samples are located. What is the distribution of wine quality
+with 0 citric acid?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, zero_citric_acid_count}
+# Plotting the quality rating of wines with zero citric acid
+ggplot(subset(df, citric.acid ==0), 
+       aes(x=quality))+
+  geom_histogram()
+```
+
+> There is a normal distribution of quality ratings of wines with zero citric 
+acid similar in shape to the overall quality distribution.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, citric_acid_grid}
+# Grid of plots comparing citric acid by quality range.
+
+p1 <- ggplot(subset(df, quality<6), aes(x=citric.acid))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits = c(0,1))+
+  scale_y_continuous(limits=c(0,40))+
+  ggtitle("Citric Acid for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=citric.acid))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits = c(0,1))+
+  scale_y_continuous(limits= c(0,40))+
+  ggtitle("Citric Acid for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+```{r echo=FALSE, citric_acid_summary_low}
+# Summarizing by quality below 6
+summary(subset(df, quality<6)$citric.acid)
+```
+```{r echo=FALSE, citric_acid_summary_high}
+# Summarizing by quality 6 and above.
+summary(subset(df, quality>=6)$citric.acid)
+```
+
+> Subsetting citric acid by quality shows higher averages for 6+ quality 
+compared to 3-5 quality rated wines. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, residual_sugar_count}
+# counting wines with each level of residual sugar.
+ggplot(df, aes(x=residual.sugar))+
+  geom_histogram(binwidth = .1)
+```
+
+> Plotting residual sugar there is a very normal distribution between 1-3, but 
+then there are scattered number of wines going up to around 15.  Will higher 
+outliers align with one of the quality ranges?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, residual_sugar_grid}
+# Gridd of plots to separate resiual sugars by quality.
+p1 <- ggplot(subset(df, quality<6), aes(x=residual.sugar))+
+  geom_histogram(binwidth = .1)+
+  scale_x_continuous(limits = c(0,16))+
+  ggtitle("Residual Sugar for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=residual.sugar))+
+  geom_histogram(binwidth = .1)+
+  scale_x_continuous(limits = c(0,16))+
+  ggtitle("Residual Sugar for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+>  The majority of wines in both rating zones fall in the same 2-3 area. A few 
+more higher residual sugar outlier int he higher quality group, but not enough 
+to drive conclusions.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, chlorides_count}
+# Plotting counts of wine chloride levels
+ggplot(df, aes(x=chlorides))+
+  geom_histogram(binwidth = .001)
+```
+
+>  The majority of wines in the data have chlorides between 0.05 and 0.1.  There 
+is a normal distribtion in that range with a few samples scattered all the way 
+to above 0.6  While there are very few above .125 I am interested to 
+see if the outliers align with a quality ranking (low or high).
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, chlorides_grid}
+# Grid plotting chlorides by the quality zones.
+p1 <- ggplot(subset(df, quality<6), aes(x=chlorides))+
+  geom_histogram(binwidth = .001)+
+  scale_x_continuous(limits = c(0,.13))+
+  scale_y_continuous(limits = c(0,40))+
+  ggtitle("Chlorides for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=chlorides))+
+  geom_histogram(binwidth = .001)+
+  scale_x_continuous(limits = c(0,.13))+
+  scale_y_continuous(limits = c(0,40))+
+  ggtitle("Chlorides for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, chlorides_summary_low}
+# Averages for the lower quality zone chloride levels
+summary(subset(df, quality<6)$chlorides)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, chlorides_summary_high}
+# Summary for the higher quality zone chloride levels.
+summary(subset(df, quality>=6)$chlorides)
+```
+
+> Both low and higher quality brackets have a normal distribution.  Overall the 
+higher quality bracket has a slightly lower chloride level.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, free_sulfur_dioxide_count}
+# Count of wines with various free sulfur dioxide levels
+ggplot(df, aes(x=free.sulfur.dioxide))+
+  geom_histogram()+
+  scale_x_log10()
+```
+
+> Free Sulfur Dioxide has a normal distribution when plotted on log10 scale, 
+with most instances between 7 and 40.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, free_sulfur_dioxide_grid}
+# Grid of free sulfur dioxide by quality rating range.
+p1 <- ggplot(subset(df, quality<6), aes(x=free.sulfur.dioxide))+
+  geom_histogram(binwidth = 1)+
+  scale_y_continuous(limits=c(0,100))+
+  ggtitle("Free Sulfur Dioxide for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=free.sulfur.dioxide))+
+  geom_histogram(binwidth = 1)+
+  scale_y_continuous(limits=c(0,100))+
+  ggtitle("Free Sulfur Dioxide for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, free_sulfur_dioxide_sum_low}
+# Averages of free sulfur dioxide for lower quality range
+summary(subset(df, quality<6)$free.sulfur.dioxide)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, free_sulfur_dioxide_sum_high}
+# Averages of free sulfur dioxide for higher quality range
+summary(subset(df, quality>=6)$free.sulfur.dioxide)
+```
+
+> When subsetting for low vs high quality ratings free sulfur dioxide have a 
+right skew at both quality levels with a slightly lower amount on average for 
+the higher level including a large spike around 5.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, total_sulfur_dioxide_count}
+# Counts of wines with levels of total sulfur dioxide
+ggplot(df, aes(x=total.sulfur.dioxide))+
+  geom_histogram()+
+  scale_x_log10()
+```
+
+> Total sulfur dioxide has a normal distribution when plotted on a log10 scale. 
+Most wines are between 10 and 100 with a couple above 250.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, total_sulfur_dioxide_grid}
+# Grid of plots of total sulfur dioxide by quality rating level.
+p1 <- ggplot(subset(df, quality<6), aes(x=total.sulfur.dioxide))+
+  geom_histogram(binwidth = 1)+
+  scale_x_continuous(limits=c(0,300))+
+  scale_y_continuous(limits = c(0,35))+
+  ggtitle("Total Sulfur Dioxide for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=total.sulfur.dioxide))+
+  geom_histogram(binwidth = 1)+
+  scale_x_continuous(limits=c(0,300))+
+  scale_y_continuous(limits = c(0,35))+
+  ggtitle("Total Sulfur Dioxide for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, total_sulfur_dioxide_summary_low}
+# averages of total sulfur dioxide for lower quality zone
+summary(subset(df, quality<6)$total.sulfur.dioxide)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, total_sulfur_dioxide_summary_high}
+# Averages of total sulfur dioxide for higher quality zone
+summary(subset(df, quality>=6)$total.sulfur.dioxide)
+```
+
+> Total sulfur dioxide when plotted by low and high quality backets are both 
+right skewed with lower averages for the higher bracket.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, density_count}
+# Density level counts 
+ggplot(df, aes(x=density))+
+  geom_histogram(binwidth = .0001)
+```
+
+> Plotting denisty has normal distribution with most wines between .993 and 1.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, density_grid}
+# Grid of density counts divided by quality zone
+p1 <- ggplot(subset(df, quality<6), aes(x=density))+
+  geom_histogram(binwidth = .0001)+
+  scale_x_continuous(limits = c(.990,1.005))+
+  scale_y_continuous(limits = c(0,35))+
+  ggtitle("Density for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=density))+
+  geom_histogram(binwidth = .0001)+
+  scale_x_continuous(limits = c(.990,1.005))+
+  scale_y_continuous(limits = c(0,35))+
+  ggtitle("Density for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+> Plotting the density by the lower and higher quality bracket both have a 
+normal distribution. The lower is more concentrated around .997, while the 
+higher is more evenly spread .995 to .997.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, pH_count}
+# Count of pH levels
+ggplot(df, aes(x=pH))+
+  geom_histogram(binwidth = .01)
+```
+
+> pH has a normal distribution with most wines between 3.1 and 3.4.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, pH_grid}
+# Grid of pH counts for low and high zones
+p1 <- ggplot(subset(df, quality<6), aes(x=pH))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits= c(2.7,4))+
+  scale_y_continuous(limits = c(0,35))+
+  ggtitle("pH for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=pH))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits= c(2.7,4))+
+  scale_y_continuous(limits = c(0,35))+
+  ggtitle("pH for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+> When divided by low and high zones of quality the pH has a naormal 
+ditribution with most wines between 3.1 and 3.4. The higher set is more 
+concentrated around 3.25
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, sulphates_count}
+#Plot of sulphate level counts
+ggplot(df, aes(x=sulphates))+
+  geom_histogram(binwidth = .01)+
+  scale_x_log10()
+```
+
+> Graphing sulphates with a log10 scale has a normal distribution with a right
+tail.  The majority of wines fall in the .5 to .75.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, sulphates_grid}
+# Grid of sulphates by low and higher quality ranges
+p1 <- ggplot(subset(df, quality<6), aes(x=sulphates))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits= c(0,1.25))+
+  scale_y_continuous(limits = c(0,50))+
+  ggtitle("Sulphates for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=sulphates))+
+  geom_histogram(binwidth = .01)+
+  scale_x_continuous(limits= c(0,1.25))+
+  scale_y_continuous(limits = c(0,50))+
+  ggtitle("Sulphates for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, sulphates_summary_low}
+# Average of sulphates for lower quality range
+summary(subset(df, quality<6)$sulphates)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, sulphates_summary_high}
+# Average of sulphates for higher quality range
+summary(subset(df, quality>=6)$sulphates)
+```
+
+> When sulphates are divided by low and high quality they each have a right tail
+distribution with higher averages of sulphates for the higher quality group.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, alcohol_count}
+# Counts of alcohol levels
+ggplot(df, aes(x=alcohol))+
+  geom_histogram(binwidth = .1)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, account_summary}
+summary(df$alcohol)
+```
+
+> Alcohol has a right tail with most wines between 9 and 11 with the peak at 
+9.5. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, account_grid}
+# Grid of alcohol content for low and high quality zones
+p1 <- ggplot(subset(df, quality<6), aes(x=alcohol))+
+  geom_histogram(binwidth = .1)+
+  scale_x_continuous(limits= c(8,14))+
+  scale_y_continuous(limits = c(0,50))+
+  ggtitle("Alcohol for Quality 3-5")
+
+p2 <- ggplot(subset(df, quality>=6), aes(x=alcohol))+
+  geom_histogram(binwidth = .1)+
+  scale_x_continuous(limits= c(8,14))+
+  scale_y_continuous(limits = c(0,50))+
+  ggtitle("ALcohol for Quality 6-8")
+
+grid.arrange(p1,p2,ncol=2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, account_summary_low}
+# Average alcohol content for lower quality rating
+summary(subset(df, quality<6)$alcohol)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, account_summary_high}
+# Average alcohol content for higher quality rating
+summary(subset(df, quality>=6)$alcohol)
+```
+
+> When dividing the alcohol by low and high quality score ratings, the higher 
+range has a higher average alcohol content.
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+
+> There are 1599 red wines in the dataset with 12 variables (fixed acidity, 
+volatile acidity, citric acid, residual sugar, chlorides, free sulfur dioxide, 
+total sulfur dioxide, density, pH, sulphates, alcohol, and quality).  Other than
+quality all are objective measurements, while quality is rated by judge's 
+sensory data.
+
+>Other Observations:
+- over 82% of red wines have a quality rating of 5-6.
+- Most wines have a density between .995 and 1.
+- Most wines have a sulphate between 0.4 and 0.8
+- Most wines have a pH between 3.0 and 3.5
+- Most wines have a volatile acidity between 0.3 and 0.8
+
+### What is/are the main feature(s) of interest in your dataset?
+
+> Quality is the main feature of the dataset and I would like to determine what 
+features are best for predicting the quality rating. I suspect alcohol and 
+volatile acid and what impacts them will be most telling.
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+
+> I think alcohol and volitile acid contribut the most significantly to quality
+ratings, but sulphates, total sulfur dioxide, free sulfur dioxide, chlorides, 
+residual sugar, citric acid, and volatile and fixed acidity all likely 
+contribute.
+
+### Did you create any new variables from existing variables in the dataset?
+
+> I have not created any new variables.
+
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the \
+form of the data? If so, why did you do this?
+
+> I used log10 scale for sulphates, total sulfur dioxide, and free sulfur 
+dioxide.  All three had a right skew and using log10 tranformed the variable 
+into a normal distribution. 
+
+
+# Bivariate Plots Section
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, matrix}
+# Matrix to pair crossover variables 
+ggcorr(df, nbreaks = 6, size = 4, hjust=1,layout.exp=2, 
+       label = T, label_size = 3, label_round = 2)
+```
+
+> There is a moderate uphill correlation between alcohol and quality and a weak 
+downhill correlation between volatile acidity and quality. 
+
+> Alcohol has a moderate uphill correlation with density.
+
+> Sulphates have a weak uphill correlation with citric acid and chloride.
+
+> pH has moderate downhill correlation to fixed acidity, citric acid and a 
+weak downhill correlation with denisty.
+
+> Density has a moderate uphill correlation with fixed acidity and weak uphill
+with citric acid and residual sugar
+
+> Total sulfur dioxide and free sulfur dioxide have a moderate uphill 
+correlation.
+
+> Citric acid has a moderate downhill correlation with volatile acidity and a
+moderate uphill correlation with fixed acidity.
+
+```{r  echo=FALSE, message=FALSE, warning=FALSE, qual_as_char}
+# Creating a new quality variable in type character
+df$Quality.Rating <- as.character(df$quality)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_al_qual}
+# Grid Qualtiy and alcohal plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=alcohol))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=alcohol))+
+  geom_point(alpha = 1/20, position = 'jitter', color = "red")+
+  geom_smooth(method = 'lm')
+grid.arrange(p1, p2, ncol =1)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, hist_qual_al}
+# histogram plot of alcohol and quality
+ggplot(df)+
+  geom_histogram(aes(alcohol, fill = Quality.Rating),binwidth = .1)+
+  scale_fill_brewer(type = 'qual')
+```
+
+> The relationship between quality rating and alcohol amount in each wine is 
+linear.  The variance is highest at the 4, 6, and 8 quality ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_alc}
+# Alcohol averages by quality rating
+by(df$alcohol, df$quality, summary)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, model_alc_qual}
+# summary of a log model of quality and alcohol
+summary(lm(formula = df$quality  ~ df$alcohol))
+```
+
+> For ratings of 5 through 8 the mean and median increase. The lower ratings 
+are a bit higher than 5.  There is probably another factor influence the lower
+rated wines, though it could be sample size. Using the R^2 value it appears 
+alcohol explains about 22 percent of the variance in ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_va}
+# Grid of quality and volatile acidity plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=volatile.acidity))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=volatile.acidity))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")+
+  geom_smooth(method = 'lm')
+grid.arrange(p1, p2, ncol = 1)
+```
+
+> The relationship between volatile acidity by quality rating is linear.  As the
+boxes show there is very large variance in the 3 and 4 ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_va}
+# Volatile acidity by quality
+by(df$volatile.acidity, df$quality, summary)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, model_qual_va}
+# Model of quality and volatile acidity
+summary(lm(formula = df$quality  ~ df$volatile.acidity))
+```
+
+> There is lower mean volatile acidity with increase in quality rating, until
+quality rating of 8.  It goes up slightly from 7, but this could be due to the
+low amount of wines at these ratings. Using R^2 volatile acidity is responsible 
+for 15% of the variation in quality ratings. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_sul}
+# Grid of quality and sulphate plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=sulphates))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=sulphates))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")+
+  geom_smooth(method = 'lm')
+grid.arrange(p1,p2,ncol=1)
+```
+
+> Quality and sulphates have a linear relationship with the most variation in 
+ratings 4 through 6.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_sul}
+# Averages of sulphates by quality levels
+by(df$sulphates, df$quality, summary)
+``` 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, model_qual_sul}
+# Model of sulphates and quality ratings
+summary(lm(formula = df$quality  ~ df$sulphates))
+```
+
+> The average sulphates goes up with quality.  Using R^2 sulphates is 
+responsible for 6% of the variation in quality ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_tsd}
+# Grid of total sulfur dioxise and quality ratings
+p1 <- ggplot(df,aes(x=Quality.Rating, y=total.sulfur.dioxide))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=total.sulfur.dioxide))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")
+grid.arrange(p1,p2,ncol=1)
+```
+
+> Plotting quality and total sulfur dioxide there is not a trend between the 
+quality levels.  The variance is greatext at 5-7, but the mean is a normal
+distribution.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_fsd}
+# Grid of free sulfure dioxide vs quality ratings plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=free.sulfur.dioxide))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=free.sulfur.dioxide))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")
+grid.arrange(p1,p2,ncol =1)
+```
+
+> Plotting quality and free sulfur dioxide there is not a trend between the 
+quality levels.  The variance is greatext at 5-6, but the mean is a normal
+distribution.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE,grid_qual_chl}
+# Grid of Chlorides vs quality rating plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=chlorides))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=chlorides))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")
+grid.arrange(p1,p2,ncol =1)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_chl}
+# Average of chlorides by quality rating
+by(df$chlorides, df$quality, summary)
+```
+
+> Chlorides averages decrease as the quality levels of red wines increase.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, model_qual_chl}
+# Model of chlorides and quality rating
+summary(lm(formula = df$quality  ~ df$chlorides))
+```
+
+> The average chlorides goes down  with quality.  Using R^2 chlorides is 
+responsible for 1.5% of the variation in quality ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_rs}
+# Grid of residual sugars and quality rating plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=residual.sugar))+
+  geom_boxplot()+
+  ylim(0,7.5)
+p2 <- ggplot(df,aes(x=quality, y=residual.sugar))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")
+grid.arrange(p1,p2,ncol =1)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_rs}
+# Average residual sugar by quality rating.
+by(df$residual.sugar, df$quality, summary)
+```
+
+> The residual sugar levels are relatively consistent over the quality ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_ca}
+# Grid of citric acid and quality rating plots.
+p1 <- ggplot(df,aes(x=Quality.Rating, y=citric.acid))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=citric.acid))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")+
+  geom_smooth(method = 'lm')
+grid.arrange(p1,p2,ncol=1)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_ca}
+# Average citric acid by quality rating
+by(df$citric.acid, df$quality, summary)
+```
+
+> There are higher average citric acid amounts with higher quality ratings.  The
+ralationship is linear, with higher averages as it progresses.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, model_qual_ca}
+# Model of citric acid and quality rating
+summary(lm(formula = df$quality  ~ df$citric.acid))
+```
+  
+> Using the R^2 measurement citric acid is 5 percent of the variation in quality
+ratings.
+  
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_fa}
+# Grid of fixed acidity and quality rating plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=fixed.acidity))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=fixed.acidity))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")
+grid.arrange(p1,p2, ncol =1)
+```
+
+> The fixed acidity stays relatively consistent over the quality rating levels.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_qual_density}
+# Grid of density and quality rating plots
+p1 <- ggplot(df,aes(x=Quality.Rating, y=density))+
+  geom_boxplot()
+p2 <- ggplot(df,aes(x=quality, y=density))+
+  geom_point(alpha = 1/20, position = 'jitter', color ="red")+
+  geom_smooth(method='lm')
+grid.arrange(p1,p2,ncol=1)
+``` 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, avg_qual_density}
+# Average density by quality rating
+by(df$density, df$quality, summary)
+```
+
+> For each quality rating the average density is dereasing in a linear pattern.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, model_qual_density}
+# Model of citric acid and quality
+summary(lm(formula = df$quality  ~ df$citric.acid))
+```
+
+> > Using the R^2 measurement density is 5 percent of the variation in quality
+ratings.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_al_density}
+# Scatter plot of density and alcohol
+ggplot(df,aes(x=alcohol, y=density))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> The downhill weak correlation is linear between density and alcohol. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_sul_ca}
+# Scatter plot of sulphates and citric acid
+ggplot(subset(df, sulphates< quantile(sulphates,0.99)),
+       aes(x=citric.acid, y=sulphates))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> The relationship between sulphates and citric acid does have a linear 
+relationship.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_sul_ch}
+# Scatter plot of sulphates and chlorides
+ggplot(df,
+       aes(x=sulphates, y=chlorides))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> The weak uphill correlation between sulphates and chlorides looks to be 
+thrownoff by the roughly 30 datapoints way above the others.  What
+will happen if I remove those outliers?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_sul_ch_2}
+# Scatter plot of sulphates and chlorides removing the extremes
+ggplot(subset(df, sulphates< quantile(sulphates,0.99) &
+                chlorides< quantile(chlorides,0.95)&
+                chlorides> quantile(chlorides,0.01)),
+       aes(x=sulphates, y=chlorides))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> Removing the really high and low chloride and sulphate wines and leaving just 
+the mass of wines there is a slight downhill linear line, the the mass doesn't
+have any visible correlation.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_pH_fa}
+# Scatter plot of pH and fixed acidity
+ggplot(subset(df, pH< quantile(pH,0.99)),
+       aes(x=pH, y=fixed.acidity))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> pH and fixed acidity has a linear relationship, with more variation on the 
+low pH end.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_pH_ca}
+# Scatter plot of pH and citric acid
+ggplot(subset(df, pH< quantile(pH,0.99) &
+                citric.acid< quantile(citric.acid,0.99)),
+       aes(x=pH, y=citric.acid))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> pH and citric acid has a weak linear relationship.  Near the high and low pH
+there is a lot of variation.  There are also a lot of 0 citric acid wines
+between 3.25 and 3.75 pH, on the higher end of the PH scale.  Because zero is 
+the minimum this causes a massing.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_pH_density}
+# Scatter plot of pH and density
+ggplot(df,
+       aes(x=pH, y=density))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+>  There is a linear relationship between density and pH.  A lot of the wines 
+fall in a large massing in the center.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_density_fa}
+# Scatter plot of density and fixed acidity
+ggplot(df,
+       aes(x=density, y=fixed.acidity))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> There is a linear relationship between density and fixed acidity with a uphill
+correlation.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_density_ca}
+# scatter plot of density and citric acid
+ggplot(df,
+       aes(x=density, y=citric.acid))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> The is a linear relationship between density and citric acid, though the floor
+of zero citric acid does come into play with a large number of the red wines in
+the dataset.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, scatter_density_rs}
+# Scatter plot of density and residual sugar
+ggplot(subset(df, density< quantile(density,0.99) &
+                residual.sugar< quantile(residual.sugar,0.95)),
+       aes(x=density, y=residual.sugar))+
+  geom_point(alpha = 1/20, color ="red")+
+  geom_smooth(method = 'lm')
+```
+
+> Density and residual sugar has a linear relationship, with variation 
+throughout.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. How did the feature(s) of interest vary with other features in \
+the dataset?
+
+> The two variables with the greatest correlation with the red wine quality 
+scores are alcohol and sulphates.  With quality ratings being at set whole 
+numbers, there are vertical bands at each. The relationship between quality 
+ratings and alcohol appears to be linear.  
+
+> The r^2 value indicates that 22 percent of the variance in ratings can be 
+explained by the alcohol levels.  The volatile acidity accounts for another 15
+percent of the variance using the R^2. Sulphates are another 6 percent, and 
+citric acid and density are each 5 percent of the variance. Other variables can 
+be incorporated to explain the remaining variation.
+
+>Higher alcohol, sulphates, and citric acid and lower volatile acidity are
+found in the wines with the higher quality ratings.  
+
+### Did you observe any interesting relationships between the other features \
+(not the main feature(s) of interest)?
+
+> Between density and alcohol and density and pH there is a downhill weak 
+correlation. Density also has a positive linear relationship with residual 
+sugar, citric acid, and fixed acidity.
+
+> Between pH and both citric acid and fixed acidity there is a week downhill 
+correlation.
+
+> sulphates has an uphill correlation with Citric acid and chlorides, though
+when high cloride wines are removed directionality is lost. 
+
+### What was the strongest relationship you found?
+
+> Alcohol and quality is the strongest relationship. though it is interesting 
+the number of relationships to density, citric acid, pH, fixed acidity, 
+and sulphates.
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, alco_den_qual}
+# Line plot of quality ratings by density and alcohol
+ggplot(df,
+       aes(x=density, y=alcohol, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> At low density when plotted with alcohol levels the higher quality rated wines
+appear before the lower quality on the density scale.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, alco_va_qual}
+# Line plot of quality rating averages on volatile acidity and alcohol scale
+ggplot(df,
+       aes(x=volatile.acidity, y=alcohol, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> At low volatile acidity when plotted with alcohol levels the higher quality
+rated wines appear before the lower quality and fizzle out by 0.9 while ratings
+3-5 continue on past 1.1.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, alco_denva_qual}
+# Line plot of quality rating by average density/volitile acidity by alcohol
+ggplot(df,
+       aes(x=density/volatile.acidity, y=alcohol, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+>Plotting the last two together, with density/valatile acidity creates 
+separation between the higher and lower weighted wines, though interestingly the
+5 rated wines are ofter between the 3 and 4 ranked wines.  Is this reflection of 
+the few number of 3 and 4 wines, throwing their average off?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, pH_den_qual}
+# Line plot of quality by average density and pH
+ggplot(df,
+       aes(x=density, y=pH, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> Plotting density and PH there is a general pattern starting with higher 
+quality ratings at lower pH and density going to lower quality at higher pH 
+and density. There is some overlap and crossing, but with quality being a 
+subjective rating some cross between a 4 and 5 is not surprising.  There is 
+never more than a two quality rating cross (nothing greater than 4 and 6 for 
+example.)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, ca_den_qual}
+# Line plot of quality by average density and citric acid
+ggplot(df,
+       aes(x=density, y=citric.acid, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> At high citric acid and low density are the highest quality ratings, 
+progressively moving to lower ratings at high density  and low citric acid. 
+There are so many 5 and 6 ratings that they appear over most of the map (though
+even there, more 6 in top left, to less in bottom right and opposite for the 5 
+rated), but what is telling are the ultra-low (3&4) and ultra high (7&8)
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fa_den_qual}
+# Line plot pf quality by average density and fixed acidity
+ggplot(df,
+       aes(x=density, y=fixed.acidity, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> Similar to citric acid, the higher quality rated wines are high fixed acidity,
+low density progressively moving to lower quality rated wines at low fixed 
+acidity and higher density
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, cafapH_den_qual}
+# Line plot of quality by average density and citric acid plus fixed acid
+# divided by pH
+ggplot(df,
+       aes(x=density, y=(citric.acid+fixed.acidity)/pH, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> Taking that higher citric acid, high fixed acidity, and low PH all are common 
+for higher weighted wines, adding fixed acidity and citric acid and dividing by 
+pH has minimumal impact on plot shape from citric acid and fixed acidity plots. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, ca_pH_qual}
+# Line plot of quality by average pH and citric acid
+ggplot(df,
+       aes(x=pH, y=citric.acid, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> The plot of citric acid and pH averages has a lot of cross over, with 3 
+rating cring over all other ratings around 3.25.  This pairing is less telling.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, chlorides_sulphates_qual}
+# Line plot of quality rating by average sulphates and chlorides
+ggplot(df,
+       aes(x=sulphates, y=chlorides, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')
+```
+
+> Lower rated wines generally have higher chlorides and lower sulphates.  The
+higher the ratings go the more average chlorides go down and sulphates go up.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, grid_pairs_v_qual}
+# Grid of box plots comparing quality to the plot pairs from above
+p1 <- ggplot(df,aes(x=Quality.Rating, y=density/pH))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(.28,.33))
+p2 <- ggplot(df,aes(x=Quality.Rating, y=alcohol/volatile.acidity))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(5,45))
+p3 <- ggplot(df,aes(x=Quality.Rating, y=alcohol/density))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(8.5,13))
+p4 <- ggplot(df,aes(x=Quality.Rating, y=citric.acid/density))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(0,.6))
+p5 <- ggplot(df,aes(x=Quality.Rating, y=fixed.acidity/density))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(6,12))
+p6 <- ggplot(df,aes(x=Quality.Rating, y=citric.acid/pH))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(0,.18))
+p7 <- ggplot(df,aes(x=Quality.Rating, y=chlorides/sulphates))+
+  geom_boxplot()+
+  scale_y_continuous(limits=c(0.07,.2))
+grid.arrange(p1,p2,p3,p4,p5,p6,p7, ncol=3)
+```
+
+> Taking each of the lessons from the line charts about, converting them to a 
+rate variable and plotting against the quality ratings show a trend of the
+averages of each.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, predictive_model}
+# Model to predict wine quality rating
+m1 <- lm(I(quality) ~ I(alcohol), data = df)
+m2 <- update(m1, ~ . + density)
+m3 <- update(m2, ~ . + volatile.acidity)
+m4 <- update(m3, ~ . + citric.acid)
+m5 <- update(m4, ~ . + fixed.acidity)
+m6 <- update(m5, ~ . + pH)
+mtable(m1, m2, m3, m4, m5,m6, sdigits = 3)
+```
+
+> The simple dirty predictive model is not getting to a high r^2.  It doesn't 
+help that the highest influencing variable (alcohol) only accounts for 
+22 percent of the variance in quality rating.  The model tops out at a 0.327 r^2
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+
+> Higher quality rated wines have on average higher density, higher alcohol, 
+and lower volatile acidity compared to lower rated wines. They also have higher 
+citric acid and fixed acidity and lower pH. While in general these hold true from
+lowest to highest rating, there are periodic crossovers or plots that have a 
+rating out of order.  This could be due to the relatively few wines rated other
+than 5 or 6. It could also be another combination of the variables better 
+predicts quality ratings.
+
+
+### Were there any interesting or surprising interactions between features?
+
+> High density, high alcohol, and low volatile acidity averages were found among 
+higher rated wines, but surprisingly when density was divided by volatile 
+acidity, the 5 rating averages generally fell between the 3 and 4 rating.  All 
+other lines were in the expected order most of the time.
+ 
+### OPTIONAL: Did you create any models with your dataset? Discuss the \
+strengths and limitations of your model.
+
+> Took a shot at a predictive model, but as expected it is not getting to a high
+r^2.  This is partially due to the highest influencing variable (alcohol) only 
+accounting for 22 percent of the variance in quality rating.  With only six 
+ratings for quality, all whole numbers with no minor scale to separate the high 
+variance in a low vs a high 5 or 6 this model cannot become perfect.
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_One}
+# Histogram of counts by quality rating
+ggplot(aes(x=quality), data = df)+
+  geom_histogram(binwidth = 1)+
+  ggtitle("Red Wine Ratings Breakdown")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylab("Number of Red Wines")+
+  xlab("Quality Rating (Whole Numbers)")
+```
+
+### Description One
+
+> There is a normal distribution of the ratings of the red wines, though there 
+is a surprising high amount of wines at the 5 and 6 rating (over 82%). 
+
+### Plot Two
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Two}
+# Grid of box plots quality rating to alcohol and colatile acidity
+p1 <- ggplot(df,aes(x=Quality.Rating, y=alcohol, fill = Quality.Rating))+
+  geom_boxplot()+
+  scale_y_continuous(limits = c(9,13.5))+
+  ggtitle("Red Wine Ratings by Alcohol Content")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylab("Alcohol (% by volume)")+
+  xlab("Quality Rating (Whole Numbers)")+
+  scale_fill_brewer(palette = "Paired")
+p2 <- ggplot(df,aes(x=Quality.Rating, y=volatile.acidity, fill = Quality.Rating))+
+  geom_boxplot()+
+  scale_y_continuous(limits = c(0.2,1.2))+
+  ggtitle("Red Wine Ratings by Volatile Acidity")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylab("Volatile Acidity (acetic acid - g / dm^3)")+
+  xlab("Quality Rating (Whole Numbers)")+
+  scale_fill_brewer(palette = "Paired")
+grid.arrange(p1,p2,ncol=1)
+```
+
+### Description Two
+
+> Alcohol content and volatile acidity both have a pattern separating the low
+to high quality of red wines.  Using R^2 they also have the greatest impact
+on the quality rating at 22 percent and 15 percent respectively.
+
+### Plot Three
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Three}
+# Scatter plot of density/volatile acidity and alcohol colored by quality rating
+ggplot(df,
+       aes(x=density/volatile.acidity, y=alcohol, color = Quality.Rating))+
+  geom_point(alpha = 1/10, aes(fill = Quality.Rating))+
+  geom_smooth(se =F)+
+  scale_color_brewer(palette = 'Paired')+
+  scale_fill_brewer(palette = 'Paired')+
+  scale_x_continuous(limits = c(0.5, quantile(df$density/df$volatile.acidity, 0.99)))+
+  ggtitle("Alcohol by Density/Volatile Acidity and Quality")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  ylab("Alcohol (% by volume)")+
+  xlab("Density/Volatile Acidity ((g / cm^3)/(acetic acid - g / dm^3))")+
+  scale_color_brewer(palette = "Paired")
+```
+
+### Description Three
+
+> Higher alcohol, higher density, and lower volatile acidity are found in the 
+higher quality rated wines.  THis holds true for the 3, 5, 6, 7, and 8 rated
+wines.  The 4 rated wines are more spread out than the other ratings.
+
+------
+
+# Reflection
+
+> The red wines data set contains information on 1599 wines with twelve 
+variables.  Quality was the one sugestive variable, so when I began by exploring
+each of the individual variables I did also loow at how the variables divided 
+betweent he low and high quality ratings. Throughout the exploration I primarily
+focused on how the variables told the story of what was rated a higher quality 
+wine.
+
+>While alcohol and volatile acidity had the most influence on quality rating 
+according to r^2 measures, this in total was less and 40% of the variation.  
+Other variable that helped to tell the story of what gets rated high quality 
+was pH, density, citric acid, sulphates, and chlorides. Using these a model was
+built but could acount for only 32% of variance in the dataset.
+
+> Some limitations which led to low performance of the model was the limits of
+the quality ratings.  Only whole numbers were used which resulted in six 
+categories.  this led to a lot or variation in the other eleven variables for
+the wines in each especially for the five and six rated whens which accounted 
+for more than 82% of wines in the dataset. It would be interesting to further
+explore these variables on a larger more evenly distributed between quality 
+rating dataset.
+
+
+

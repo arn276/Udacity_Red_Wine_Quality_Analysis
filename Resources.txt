@@ -1,0 +1,5 @@
+-- https://stackoverflow.com/questions/41338757/adding-percentage-labels-on-pie-chart-in-r
+-- https://stackoverflow.com/questions/14622421/how-to-change-legend-title-in-ggplot
+-- http://ggplot2.tidyverse.org/reference/scale_brewer.html
+-- https://stackoverflow.com/questions/10646665/how-to-convert-r-markdown-to-html-i-e-what-does-knit-html-do-in-rstudio-0-9
+-- https://briatte.github.io/ggcorr/
